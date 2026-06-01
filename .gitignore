@@ -1,0 +1,27 @@
+# Python
+backend/.venv/
+backend/.venv
+backend/__pycache__/
+backend/**/__pycache__/
+backend/db.sqlite3
+backend/.env
+.venv/
+**/.venv/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Secrets at repo root (if any)
+.env
+.env.local
+
+# Production build artifacts (regenerated on Render)
+backend/frontend_dist/
+backend/staticfiles/
+backend/templates/index.html
+
+# IDE
+.idea/
+.vscode/
+*.log

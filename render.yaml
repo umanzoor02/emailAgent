@@ -1,0 +1,19 @@
+# Optional: connect this repo on Render.com → New → Blueprint
+services:
+  - type: web
+    name: indeed-email-agent
+    runtime: python
+    plan: free
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.5"
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: SERVE_SPA
+        value: "true"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: OAUTHLIB_INSECURE_TRANSPORT
+        value: "0"
