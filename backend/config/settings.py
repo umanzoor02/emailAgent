@@ -33,7 +33,12 @@ _render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 if _render_host:
     ALLOWED_HOSTS.append(_render_host)
 
-_PRODUCTION_URL = os.environ.get("FRONTEND_URL", "").rstrip("/")
+# Render terminates TLS at the proxy; required for correct https:// URLs
+if _render_host or SERVE_SPA:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
+
+_PRODUCTION_URL = os.environ.get("FRONTEND_URL", "").strip().rstrip("/")
 if SERVE_SPA and _PRODUCTION_URL.startswith("https://"):
     _host = _PRODUCTION_URL.replace("https://", "").split("/")[0]
     if _host not in ALLOWED_HOSTS:
@@ -54,7 +59,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -62,6 +66,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if SERVE_SPA:
+    MIDDLEWARE.insert(2, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = "config.urls"
 
@@ -151,17 +158,25 @@ REST_FRAMEWORK = {
 # Gmail OAuth (Google Cloud Console → APIs & Services → Credentials)
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-if _render_host and not os.environ.get("FRONTEND_URL"):
-    FRONTEND_URL = f"https://{_render_host}"
-else:
-    FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+def _production_frontend_url() -> str:
+    """Never redirect OAuth to localhost when running on Render."""
+    env_url = os.environ.get("FRONTEND_URL", "").strip().rstrip("/")
+    if _render_host:
+        if not env_url or "localhost" in env_url or "127.0.0.1" in env_url:
+            return f"https://{_render_host}"
+        if env_url.startswith("http://"):
+            return "https://" + env_url.removeprefix("http://")
+        return env_url
+    return env_url or "http://localhost:5173"
 
-if _render_host and not os.environ.get("GOOGLE_REDIRECT_URI"):
-    GOOGLE_REDIRECT_URI = f"{FRONTEND_URL.rstrip('/')}/api/auth/gmail/callback/"
+
+FRONTEND_URL = _production_frontend_url()
+
+_env_redirect = os.environ.get("GOOGLE_REDIRECT_URI", "").strip()
+if _env_redirect and _render_host and "localhost" not in _env_redirect:
+    GOOGLE_REDIRECT_URI = _env_redirect
 else:
-    GOOGLE_REDIRECT_URI = os.environ.get(
-        "GOOGLE_REDIRECT_URI", "http://localhost:5173/api/auth/gmail/callback/"
-    )
+    GOOGLE_REDIRECT_URI = f"{FRONTEND_URL.rstrip('/')}/api/auth/gmail/callback/"
 
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 

@@ -76,7 +76,7 @@ def gmail_auth_start(request):
 
 @api_view(["GET"])
 def gmail_auth_callback(request):
-    frontend = settings.FRONTEND_URL.rstrip("/")
+    frontend = settings.FRONTEND_URL.strip().rstrip("/")
 
     if not gmail_service.gmail_configured():
         return HttpResponseRedirect(f"{frontend}/?gmail=error&reason=config")
